@@ -1,0 +1,38 @@
+# Configuration for PR labeler
+# Add 'core' label to any changes in the core module
+core:
+  - pyusacycling/client.py
+  - pyusacycling/parser.py
+
+# Add 'models' label to any changes in the models module
+models:
+  - pyusacycling/models.py
+
+# Add 'simplified-interface' label to any changes related to the simplified interface
+simplified-interface:
+  - pyusacycling/high_level.py
+  - pyusacycling/config.py
+
+# Add 'cli' label to any changes in the CLI module
+cli:
+  - pyusacycling/cli.py
+
+# Add 'docs' label to any changes in documentation
+docs:
+  - README.md
+  - examples/**/*
+  - '**/*.md'
+
+# Add 'tests' label to any changes in tests
+tests:
+  - tests/**/*
+
+# Add 'dependencies' label to any changes in package dependencies
+dependencies:
+  - setup.py
+  - requirements.txt
+  - pyproject.toml
+
+# Add 'ci-cd' label to any changes in GitHub workflows
+ci-cd:
+  - .github/workflows/**/* 

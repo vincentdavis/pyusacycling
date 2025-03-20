@@ -25,7 +25,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
@@ -49,6 +49,8 @@ setup(
             "types-requests>=2.25.0",
             "types-beautifulsoup4>=4.9.0",
             "types-python-dateutil>=2.8.2",
+            "build>=0.8.0",
+            "twine>=4.0.0",
         ],
     },
     entry_points={

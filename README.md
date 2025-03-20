@@ -16,6 +16,7 @@ A Python package that scrapes and parses USA Cycling event results from the lega
 - **Resilient Fetching**: Built-in retry mechanism and rate limiting
 - **Efficient Caching**: Local storage of results to minimize requests
 - **Type Safety**: Fully type-annotated API with Pydantic validation
+- **Simplified Interface**: Easy-to-use interfaces for common operations
 
 ## 📦 Installation
 
@@ -35,7 +36,32 @@ pip install -e ".[dev]"
 
 ## 🔍 Usage Examples
 
-### Using the Python API
+### Using the Simplified Interface (Recommended)
+
+```python
+import pyusacycling as usac
+
+# Get events for a state and year
+events = usac.EventList().get(state="CO", yr=2021)
+
+# Get details for an event by permit number
+event_details = usac.EventDetails().get(permit="2021-123")
+
+# Get race results for a specific race ID
+race_results = usac.RaceResults().get(race_id="1337864")
+
+# Get all race results for an event by permit
+all_results = usac.RaceResults().get_by_permit(permit="2021-123")
+
+# Configure global settings
+usac.set_config(
+    cache_enabled=True,
+    cache_dir="./data/cache",
+    log_level="INFO"
+)
+```
+
+### Using the Python API (Advanced)
 
 ```python
 from pyusacycling import USACyclingClient
@@ -164,9 +190,32 @@ python -m pyusacycling results --permit 2023-123 --output json --no-cache
 python -m pyusacycling complete --permit 2023-123 --log-level DEBUG
 ```
 
-## 📘 API Reference
+## �� API Reference
 
-### Client
+### Simplified Interface
+
+```python
+# EventList - Get events by state and year
+EventList(**config_options)
+    .get(state: str, yr: Optional[int] = None) -> List[Event]
+
+# EventDetails - Get event details by permit
+EventDetails(**config_options)
+    .get(permit: str) -> EventDetails
+
+# RaceResults - Get race results
+RaceResults(**config_options)
+    .get(race_id: str) -> RaceResult
+    .get_by_permit(permit: str) -> Dict[str, RaceResult]
+    .get_all_races(permit: str) -> List[Dict[str, Any]]
+
+# Configuration
+get_config() -> Dict[str, Any]
+set_config(**kwargs) -> None
+reset_config() -> None
+```
+
+### Client Interface (Advanced)
 
 ```python
 USACyclingClient(
