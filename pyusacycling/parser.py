@@ -37,6 +37,7 @@ class BaseParser:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
+        "Cookie": "usacsess=jrkj6v50ftsqkboga0rgbqgrs1"
     }
     
     def __init__(
@@ -507,7 +508,6 @@ class BaseParser:
         """
         url = self._build_load_info_url(info_id, label)
         html_content = self._fetch_content(url)
-        print('html_content', html_content)
         soup = self._make_soup(html_content)
         
         # Extract race categories from HTML
@@ -535,34 +535,153 @@ class BaseParser:
         Returns:
             Parsed data from HTML or JSON response
         """
-        url = self._build_race_results_url(race_id)
 
-        html_content = self._fetch_content(url)
-        soup = self._make_soup(html_content)
+        # For real requests, continue with normal flow
+        url = self._build_race_results_url(race_id)
         
-        # Extract race results from HTML
-        result = {
-            "id": race_id,
-            "name": self._extract_text(soup.select_one("h4.race-title")),
-            "riders": []
+        # Add referer header to mimic browser behavior
+        headers = {
+            "Referer": f"{self.RESULTS_URL}?permit=2020-26"
         }
         
-        # Find results table
-        results_table = soup.select_one("table.results-table")
-        if results_table:
-            headers = [th.text.strip() for th in results_table.select("thead th")]
-            rows = results_table.select("tbody tr")
-            
-            for row in rows:
-                rider_data = {}
-                cells = row.select("td")
-                for i, cell in enumerate(cells):
-                    if i < len(headers):
-                        rider_data[headers[i]] = self._extract_text(cell)
-                if rider_data:
-                    result["riders"].append(rider_data)
+        # Try to get from cache
+        if self.cache_enabled:
+            cache_key = url
+            cached_data = self._get_from_cache(cache_key)
+            if cached_data:
+                logger.debug(f"Using cached response for {url}")
+                return cached_data["response"]
         
-        return result
+        try:
+            # Make the request with session (which includes cookies)
+            response = self._fetch_with_retries(
+                url=url,
+                method="GET",
+                headers=headers
+            )
+            
+            html_content = response.text
+            logger.debug(f"Response received for {url}, length: {len(html_content)}")
+            
+            # Parse JSON response if it looks like JSON
+            json_data = None
+            if html_content.startswith('{'):
+                try:
+                    json_data = json.loads(html_content)
+                    if 'message' in json_data:
+                        # Extract HTML from JSON response
+                        html_content = json_data['message']
+                    elif 'd' in json_data:
+                        # Extract HTML from 'd' field in JSON response (older format)
+                        html_content = json_data['d']
+                except (json.JSONDecodeError, KeyError):
+                    # If not valid JSON, continue with HTML parsing
+                    pass
+            
+            # Check if response contains "Unauthorized access!"
+            if "Unauthorized access!" in html_content:
+                logger.warning(f"Received unauthorized access response for {url}")
+                logger.debug("Returning empty results as fallback")
+                # Return a minimal results object as fallback
+                return {"id": race_id, "name": "", "riders": []}
+            
+            soup = self._make_soup(html_content)
+            
+            # Extract race results from HTML
+            result = {
+                "id": race_id,
+                "name": "",
+                "riders": []
+            }
+            
+            # Try to find race title
+            race_title = soup.select_one("h4.race-title")
+            if race_title:
+                result["name"] = self._extract_text(race_title)
+            else:
+                # Try alternate title format
+                race_title = soup.select_one("span.race-name")
+                if race_title:
+                    result["name"] = self._extract_text(race_title)
+            
+            # USA Cycling uses div elements with class 'tablerow' for the data rows
+            table_rows = soup.select("div.tablerow")
+            logger.debug(f"Found {len(table_rows)} rows in race results")
+            
+            # If no rows were found, try looking for more traditional table format
+            if not table_rows:
+                results_table = soup.select_one("table.results-table")
+                if results_table:
+                    table_headers = [th.text.strip() for th in results_table.select("thead th")]
+                    rows = results_table.select("tbody tr")
+                    
+                    for row in rows:
+                        rider_data = {}
+                        cells = row.select("td")
+                        for i, cell in enumerate(cells):
+                            if i < len(table_headers):
+                                rider_data[table_headers[i]] = self._extract_text(cell)
+                        if rider_data:
+                            result["riders"].append(rider_data)
+            else:
+                # Process the div-based table format
+                # First, find all header cells to get column names
+                header_cells = soup.select("div.tablecell.header")
+                if header_cells:
+                    headers = []
+                    for cell in header_cells:
+                        text = self._extract_text(cell)
+                        if text and text != "\u00a0":  # Ignore non-breaking spaces
+                            headers.append(text)
+                    
+                    # Process each row
+                    for row in table_rows:
+                        if 'odd' in row.get('class', []) or 'even' in row.get('class', []):
+                            rider_data = {}
+                            cells = row.select("div.tablecell.results")
+                            
+                            # Common fields we'll extract (based on position)
+                            if len(cells) >= 2:
+                                rider_data["place"] = self._extract_text(cells[1])
+                            
+                            if len(cells) >= 5:
+                                # Find the name link
+                                name_link = cells[4].select_one("a")
+                                rider_data["name"] = self._extract_text(name_link) if name_link else self._extract_text(cells[4])
+                            
+                            if len(cells) >= 6:
+                                # Location (may be city, state)
+                                rider_data["location"] = self._extract_text(cells[5])
+                            
+                            if len(cells) >= 7:
+                                # Time
+                                rider_data["time"] = self._extract_text(cells[6])
+                            
+                            if len(cells) >= 9:
+                                # License
+                                rider_data["license"] = self._extract_text(cells[8])
+                            
+                            if len(cells) >= 10:
+                                # Bib
+                                rider_data["bib"] = self._extract_text(cells[9])
+                            
+                            if len(cells) >= 11:
+                                # Team
+                                rider_data["team"] = self._extract_text(cells[10])
+                            
+                            if rider_data:
+                                result["riders"].append(rider_data)
+            
+            # Cache the response
+            if self.cache_enabled:
+                self._save_to_cache(url, result)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch race results for {race_id}: {str(e)}")
+            # Return minimal result on error
+            return {"id": race_id, "name": "", "riders": []}
 
 
 class EventListParser(BaseParser):
@@ -1045,7 +1164,6 @@ class RaceResultsParser(BaseParser):
         """
         # Fetch load info 
         load_info_data = self.fetch_load_info(info_id, label)
-        print('load_info_data', load_info_data)
         # Handle the direct HTML parsing result from fetch_load_info
         if "categories" in load_info_data:
             categories = []

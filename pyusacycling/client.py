@@ -14,6 +14,7 @@ from .parser import EventListParser, EventDetailsParser, RaceResultsParser, Base
 from .models import Event, EventDetails, RaceCategory, RaceResult, Rider
 from .utils import logger, configure_logging
 from .exceptions import ParseError, NetworkError, ValidationError
+from pydantic import  ValidationError as pydantic_ValidationError
 
 
 class USACyclingClient:
@@ -190,7 +191,6 @@ class USACyclingClient:
         try:
             # Parse race categories
             categories_data = self._race_results_parser.parse_race_categories(info_id, label)
-            print('categories_data', categories_data, info_id)
             # Convert to RaceCategory model objects
             categories = []
             for category_data in categories_data:
@@ -262,6 +262,8 @@ class USACyclingClient:
                 try:
                     rider = Rider(**rider_data)
                     riders.append(rider)
+                except pydantic_ValidationError as exc:
+                    logger.warning(f"ValidationError: {repr(exc.errors()[0]['type'])}")
                 except Exception as e:
                     logger.warning(f"Error creating Rider object: {str(e)}")
                     continue
@@ -515,7 +517,7 @@ class USACyclingClient:
                             continue
                             
                         try:
-                            race_results = self.get_race_results(race_id)
+                            race_results = self.get_race_results(race_id, category_info=category)
                             results[race_id] = race_results
                         except Exception as e:
                             logger.warning(f"Error getting results for race {race_id}: {str(e)}")
