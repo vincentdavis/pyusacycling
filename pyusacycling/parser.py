@@ -87,13 +87,13 @@ class BaseParser:
     
     def _get_from_cache(self, url: str) -> Optional[Dict[str, Any]]:
         """
-        Get cached response for a URL.
+        Get response from cache.
         
         Args:
-            url: The URL to retrieve from cache
+            url: The URL to get from cache
             
         Returns:
-            Dict with cached response or None if not in cache
+            The cached response, or None if not in cache or expired
         """
         if not self.cache_enabled:
             return None
@@ -109,12 +109,22 @@ class BaseParser:
                 
             # Check if cache is expired
             if "expires_at" in cache_data:
-                expires_at = datetime.fromisoformat(cache_data["expires_at"])
+                # Handle both timestamp (float) and ISO format (str) for backward compatibility
+                if isinstance(cache_data["expires_at"], str):
+                    try:
+                        expires_at = datetime.fromisoformat(cache_data["expires_at"])
+                    except (ValueError, TypeError):
+                        # If string format is invalid, treat as expired
+                        return None
+                else:
+                    # If it's a timestamp (float)
+                    expires_at = datetime.fromtimestamp(float(cache_data["expires_at"]))
+                
                 if datetime.now() > expires_at:
                     return None
                 
             return cache_data
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
             logger.warning(f"Error reading cache for {url}: {str(e)}")
             return None
     
@@ -136,7 +146,7 @@ class BaseParser:
         cache_data = {
             "url": url,
             "cached_at": datetime.now().isoformat(),
-            "expires_at": (datetime.now().timestamp() + expire_seconds),
+            "expires_at": datetime.now().timestamp() + expire_seconds,  # Store as timestamp for consistency
             "response": data
         }
         

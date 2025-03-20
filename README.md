@@ -16,7 +16,6 @@ A Python package that scrapes and parses USA Cycling event results from the lega
 - **Resilient Fetching**: Built-in retry mechanism and rate limiting
 - **Efficient Caching**: Local storage of results to minimize requests
 - **Type Safety**: Fully type-annotated API with Pydantic validation
-- **Simplified Interface**: Easy-to-use interfaces for common operations
 
 ## 📦 Installation
 
@@ -36,32 +35,7 @@ pip install -e ".[dev]"
 
 ## 🔍 Usage Examples
 
-### Using the Simplified Interface (Recommended)
-
-```python
-import pyusacycling as usac
-
-# Get events for a state and year
-events = usac.EventList().get(state="CO", yr=2021)
-
-# Get details for an event by permit number
-event_details = usac.EventDetails().get(permit="2021-123")
-
-# Get race results for a specific race ID
-race_results = usac.RaceResults().get(race_id="1337864")
-
-# Get all race results for an event by permit
-all_results = usac.RaceResults().get_by_permit(permit="2021-123")
-
-# Configure global settings
-usac.set_config(
-    cache_enabled=True,
-    cache_dir="./data/cache",
-    log_level="INFO"
-)
-```
-
-### Using the Python API (Advanced)
+### Using the Python API
 
 ```python
 from pyusacycling import USACyclingClient
@@ -70,13 +44,17 @@ from pyusacycling import USACyclingClient
 client = USACyclingClient()
 
 # Get events for a state and year
-events = client.get_events(state="CA", year=2023)
+events = client.get_events(state="CO", year=2023)
 
 # Get details for an event by permit number
-event_details = client.get_event_details(permit="2023-123")
+event_details = client.get_event_details(permit="2020-26")
 
 # Get race results for a specific permit
-race_results = client.get_race_results(permit="2023-123")
+all_result = client.get_complete_event_data(permit="2020-26", include_results=True)
+
+# Get race results for a specific permit
+race_results = client.get_race_results(race_id="1337864")
+
 
 # Export to JSON
 json_data = race_results.json()
@@ -190,32 +168,9 @@ python -m pyusacycling results --permit 2023-123 --output json --no-cache
 python -m pyusacycling complete --permit 2023-123 --log-level DEBUG
 ```
 
-## �� API Reference
+## 📘 API Reference
 
-### Simplified Interface
-
-```python
-# EventList - Get events by state and year
-EventList(**config_options)
-    .get(state: str, yr: Optional[int] = None) -> List[Event]
-
-# EventDetails - Get event details by permit
-EventDetails(**config_options)
-    .get(permit: str) -> EventDetails
-
-# RaceResults - Get race results
-RaceResults(**config_options)
-    .get(race_id: str) -> RaceResult
-    .get_by_permit(permit: str) -> Dict[str, RaceResult]
-    .get_all_races(permit: str) -> List[Dict[str, Any]]
-
-# Configuration
-get_config() -> Dict[str, Any]
-set_config(**kwargs) -> None
-reset_config() -> None
-```
-
-### Client Interface (Advanced)
+### Client
 
 ```python
 USACyclingClient(
