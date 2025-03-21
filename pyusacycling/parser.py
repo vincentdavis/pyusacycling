@@ -358,6 +358,11 @@ class BaseParser:
         """
         if element is None:
             return ""
+        if "<" in element.get_text(strip=True):
+            try:
+                return element.get_text(strip=True).split("<")[0]
+            except:
+                return element.get_text(strip=True)
         return element.get_text(strip=True)
     
     def _extract_date(self, date_str: str) -> Optional[date]:
@@ -523,7 +528,6 @@ class BaseParser:
         # Extract race categories from HTML
         result = {"categories": []}
         race_items = soup.select("li[id^='race_']")
-        
         for item in race_items:
             race_id = self._extract_race_id(item.get('id', ''))
             if race_id:
@@ -918,22 +922,45 @@ class EventDetailsParser(BaseParser):
                     event_details['end_date'] = event_details['start_date']
         
         # Extract disciplines
-        disciplines = set()
+        disciplines = list()
         discipline_links = soup.select('a[onclick^="loadInfoID"]')
         
         for link in discipline_links:
+            # Extract info_id and date from onclick attribute
+            onclick = link.get('onclick', '')
+            info_id_match = re.search(r'loadInfoID\((\d+)', onclick)
+            date_match = re.search(r'\d{2}/\d{2}/\d{4}', onclick)
+            
             discipline_text = self._extract_text(link)
             if discipline_text:
                 # Clean up the discipline name (remove date if present)
                 clean_discipline = re.sub(r'\s+\d{2}/\d{2}/\d{4}$', '', discipline_text)
-                disciplines.add(clean_discipline)
+                
+                # Extract race date if present
+                clean_race_date = date_match.group(0) if date_match else ''
+                
+                # Extract load_info_id
+                load_info_id = info_id_match.group(1) if info_id_match else ''
+                
+                disciplines.append({
+                    "load_info_id": load_info_id,
+                    "discipline": clean_discipline,
+                    "race_date": clean_race_date
+                })
         
-        event_details['disciplines'] = sorted(list(disciplines))
+        event_details['disciplines'] = list(disciplines)
         
         # Extract categories - will require additional API calls in a future implementation
         # For now, we'll leave it as an empty list
         event_details['categories'] = []
-        
+        race_result_parser = RaceResultsParser()
+        for discipline in disciplines:
+            event_details['categories'].append({
+                "load_info_id": discipline.get('load_info_id', ''),
+                "categories": race_result_parser.parse_race_categories(
+                        discipline.get('load_info_id', ''), ''
+                    )
+            })
         # Set default values for fields that might not be extracted
         defaults = {
             'name': f"Event {permit}",
@@ -1179,7 +1206,7 @@ class RaceResultsParser(BaseParser):
             categories = []
             for cat in load_info_data["categories"]:
                 category = {
-                    "id": cat["id"],
+                    "race_id": cat["id"],
                     "name": cat["name"],
                     "info_id": info_id,
                     "label": label

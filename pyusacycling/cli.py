@@ -148,7 +148,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     )
     categories_parser.add_argument(
         "--label",
-        required=True,
+        required=False,
         help="Label for the discipline"
     )
     categories_parser.add_argument(

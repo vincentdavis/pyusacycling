@@ -50,7 +50,7 @@ events = client.get_events(state="CO", year=2023)
 event_details = client.get_event_details(permit="2020-26")
 
 # Get race results for a specific permit
-all_result = client.get_complete_event_data(permit="2020-26", include_results=True)
+all_result = client.get_complete_event_data(permit="2020-26", include_results=True) 
 
 # Get race results for a specific permit
 race_results = client.get_race_results(race_id="1337864")

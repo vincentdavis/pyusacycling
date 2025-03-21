@@ -136,8 +136,8 @@ class EventDetails(BaseModel):
     website: Optional[str] = None
     registration_url: Optional[str] = None
     is_usac_sanctioned: bool = False
-    categories: List[str] = Field(default_factory=list)
-    disciplines: List[str] = Field(default_factory=list)
+    categories: Any = Field(default_factory=list)
+    disciplines: List[Dict[str, str]] = Field(default_factory=list)
     description: Optional[str] = None
     dates: List[EventDate] = Field(default_factory=list)
     
@@ -240,7 +240,7 @@ class RaceResult(BaseModel):
     """Model for race results."""
     id: str
     event_id: str
-    category: RaceCategory
+    # category: Optional[RaceCategory] = None
     date: date
     start_time: Optional[datetime] = None
     total_laps: Optional[int] = None

@@ -245,8 +245,8 @@ class USACyclingClient:
             race_data = self._race_results_parser.get_race_results(race_id, category_info)
             
             # Ensure we have the required fields
-            if not race_data.get('category') or not race_data.get('id'):
-                raise ParseError(f"Incomplete race data for race ID {race_id}")
+            # if not race_data.get('category') or not race_data.get('id'):
+            #     raise ParseError(f"Incomplete race data for race ID {race_id}")
             
             # Set default values for required fields if they're missing
             if 'event_id' not in race_data or not race_data['event_id']:
