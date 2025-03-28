@@ -265,9 +265,9 @@ class TestFlyerFetcher(unittest.TestCase):
             # Configure mock client to return events
             mock_instance = mock_client.return_value
             mock_instance.get_events.return_value = [
-                {"permit_number": "2020-1"},
-                {"permit_number": "2020-2"},
-                {"permit_number": "2020-3"},
+                mock.MagicMock(permit_number="2020-1"),
+                mock.MagicMock(permit_number="2020-2"),
+                mock.MagicMock(permit_number="2020-3"),
             ]
 
             # Fetch flyers
