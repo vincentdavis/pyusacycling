@@ -537,7 +537,7 @@ class USACyclingClient:
                                 logger.warning(f"Error getting results for race {race_id}: {e!s}")
 
             # Combine all data
-            return {"details": details, "disciplines": disciplines, "categories": categories, "results": results}
+            return {"event": details, "disciplines": disciplines, "categories": categories, "results": results}
 
         except (NetworkError, ParseError) as e:
             logger.error(f"Error getting complete event data for permit {permit}: {e!s}")

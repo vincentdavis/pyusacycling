@@ -207,7 +207,7 @@ class TestBaseParser(unittest.TestCase):
         self.assertTrue("act=loadresults" in race_results_url)
         self.assertTrue("race_id=7890123" in race_results_url)
 
-    @mock.patch("pyusacycling.parser.BaseParser._fetch_content")
+    @mock.patch("usac_velodata.parser.BaseParser._fetch_content")
     def test_fetch_event_list(self, mock_fetch):
         """Test fetching event lists."""
         # Mock response
@@ -220,7 +220,7 @@ class TestBaseParser(unittest.TestCase):
         self.assertEqual(content, "<html>Event list</html>")
         mock_fetch.assert_called_once()
 
-    @mock.patch("pyusacycling.parser.BaseParser._fetch_content")
+    @mock.patch("usac_velodata.parser.BaseParser._fetch_content")
     def test_fetch_permit_page(self, mock_fetch):
         """Test fetching permit pages."""
         # Mock response
@@ -233,30 +233,33 @@ class TestBaseParser(unittest.TestCase):
         self.assertEqual(content, "<html>Permit page</html>")
         mock_fetch.assert_called_once()
 
-    @mock.patch("pyusacycling.parser.BaseParser._fetch_json")
+    @mock.patch("usac_velodata.parser.BaseParser._fetch_content")
     def test_fetch_load_info(self, mock_fetch):
         """Test fetching load info data."""
         # Mock response
-        mock_fetch.return_value = {"races": []}
+        mock_fetch.return_value = "<html><ul><li id='race_123'><a>Test Race</a></li></ul></html>"
 
         # Fetch load info
         data = self.parser.fetch_load_info("123456", "Test")
 
         # Verify
-        self.assertEqual(data, {"races": []})
+        self.assertIn("categories", data)
         mock_fetch.assert_called_once()
 
-    @mock.patch("pyusacycling.parser.BaseParser._fetch_json")
+    @mock.patch("usac_velodata.parser.BaseParser._fetch_with_retries")
     def test_fetch_race_results(self, mock_fetch):
         """Test fetching race results data."""
         # Mock response
-        mock_fetch.return_value = {"results": []}
+        mock_response = mock.Mock()
+        mock_response.text = "<html><span class='race-name'>Test Race</span><div class='tablerow'></div></html>"
+        mock_fetch.return_value = mock_response
 
         # Fetch race results
         data = self.parser.fetch_race_results("7890123")
 
         # Verify
-        self.assertEqual(data, {"results": []})
+        self.assertIn("name", data)
+        self.assertIn("riders", data)
         mock_fetch.assert_called_once()
 
 

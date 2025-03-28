@@ -1,5 +1,6 @@
 """Utility functions for the USA Cycling Results Parser package."""
 
+import contextlib
 import functools
 import hashlib
 import json
@@ -15,7 +16,7 @@ from datetime import datetime
 from typing import Any, TypeVar, cast
 
 # Configure base logger
-logger = logging.getLogger("pyusacycling")
+logger = logging.getLogger("usac_velodata")
 
 # Default log format for the library
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -34,7 +35,7 @@ LOG_LEVELS = {
 T = TypeVar("T")
 
 # Cache directory setup
-DEFAULT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "pyusacycling_cache")
+DEFAULT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "usac_velodata_cache")
 
 
 class CacheError(Exception):
@@ -56,7 +57,7 @@ def configure_logging(
 ) -> None:
     """Configure the package's logging system with extensive customization.
 
-    This function sets up the logger for the pyusacycling package with options
+    This function sets up the logger for the usac_velodata package with options
     for console output, file output, format customization, and log level settings.
 
     Args:
@@ -75,7 +76,7 @@ def configure_logging(
         configure_logging()
 
         # Debug level to both console and file
-        configure_logging(level='debug', log_file='pyusacycling.log')
+        configure_logging(level='debug', log_file='usac_velodata.log')
 
         # Different levels for console and file
         configure_logging(level='error', log_file='errors.log',
@@ -125,10 +126,10 @@ def configure_logging(
     logger.propagate = propagate
 
 
-def get_logger(name: str = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger instance for a specific module or component.
 
-    Creates a child logger of the main pyusacycling logger with the specified name.
+    Creates a child logger of the main usac_velodata logger with the specified name.
     This allows for component-specific logging control.
 
     Args:
@@ -166,7 +167,7 @@ def disable_logging() -> None:
 
 
 def log_function_call(func):
-    """Decorator to log function calls with parameters and return values.
+    """Log function calls with parameters and return values.
 
     Args:
         func: The function to wrap with logging
@@ -296,7 +297,7 @@ class LogContext:
 def rate_limit_decorator(
     max_calls: int, period: float, backoff_factor: float = 2.0, max_backoff: float = 60.0, jitter: bool = True
 ) -> callable:
-    """Decorator for rate limiting function calls with exponential backoff.
+    """Rate limit function calls with exponential backoff.
 
     This decorator limits the number of calls to a function within a given time period.
     If the limit is exceeded, the decorator will implement exponential backoff to
@@ -402,7 +403,7 @@ class RateLimiter:
 
     def __init__(
         self,
-        name: str = None,
+        name: str | None = None,
         max_calls: int = 60,
         period: float = 60,
         backoff_factor: float = 2.0,
@@ -547,7 +548,7 @@ class RateLimiter:
 
 
 def throttle(max_calls: int = 1, period: float = 1.0):
-    """Simple throttling decorator that limits the call rate of a function.
+    """Throttle throttling decorator that limits the call rate of a function.
 
     Unlike rate_limit_decorator, this doesn't implement exponential backoff,
     but simply ensures calls are spaced out by the minimum required interval.
@@ -652,11 +653,11 @@ def generate_cache_key(func_name: str, args: tuple, kwargs: dict) -> str:
 
     # Add string representations of args
     for arg in args:
-        key_parts.append(repr(arg))
+        key_parts.extend(repr(arg).split("\n"))
 
     # Add string representations of kwargs (sorted for consistency)
     for k in sorted(kwargs.keys()):
-        key_parts.append(f"{k}={kwargs[k]!r}")
+        key_parts.extend(f"{k}={kwargs[k]!r}".split("\n"))
 
     # Join parts and hash
     key_str = "::".join(key_parts)
@@ -669,7 +670,7 @@ def cache_result(
     key_prefix: str = "",
     exceptions_to_cache: list[type] | None = None,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """Decorator for disk-based caching of function results with expiration.
+    """Cache function results to disk with expiration.
 
     This decorator saves the result of a function call to disk and returns
     the cached value on subsequent calls with the same arguments, until
@@ -834,10 +835,8 @@ class Cache:
                         # Cache expired
                         self.logger.debug(f"Cache expired for {key} ({file_age:.1f}s > {self.expire_seconds}s)")
                         # Optionally remove expired file
-                        try:
+                        with contextlib.suppress(OSError):
                             os.remove(cache_file)
-                        except OSError:
-                            pass
                 else:
                     self.logger.debug(f"Cache miss for {key}")
 
@@ -958,7 +957,6 @@ class Cache:
                         try:
                             # Use a simpler approach: create a test key with our namespace
                             # and see if the hash matches the filename
-                            test_key = f"{self.namespace}::test"
                             namespace_prefix = hashlib.md5(self.namespace.encode("utf-8")).hexdigest()[:6]
                             if not filename.startswith(namespace_prefix):
                                 continue
@@ -1077,7 +1075,7 @@ def get_cached_value(
     cache_dir: str | None = None,
     namespace: str = "",
 ) -> T:
-    """Helper function to get a cached value or compute it if not in cache.
+    """Get a cached value or compute it if not in cache.
 
     This is a more direct way to use caching without the decorator syntax.
 

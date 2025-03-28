@@ -42,7 +42,7 @@ class TestEventListParser(unittest.TestCase):
             </table>
             """
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_event_list")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_event_list")
     def test_parse(self, mock_fetch):
         """Test parsing event listings."""
         # Mock the fetch_event_list method to return our sample HTML
@@ -67,7 +67,7 @@ class TestEventListParser(unittest.TestCase):
         self.assertEqual(event["permit"], "2020-26")
         self.assertEqual(event["event_date"], date(2020, 12, 2))
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_event_list")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_event_list")
     def test_parse_empty_table(self, mock_fetch):
         """Test parsing event listings with empty table."""
         # Mock the fetch_event_list method to return an empty table
@@ -84,7 +84,7 @@ class TestEventListParser(unittest.TestCase):
         # Verify an empty list is returned
         self.assertEqual(events, [])
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_event_list")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_event_list")
     def test_parse_no_table(self, mock_fetch):
         """Test parsing event listings with no table."""
         # Mock the fetch_event_list method to return HTML with no table
@@ -98,7 +98,7 @@ class TestEventListParser(unittest.TestCase):
         # Verify an empty list is returned
         self.assertEqual(events, [])
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_event_list")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_event_list")
     def test_get_events(self, mock_fetch):
         """Test getting events with IDs and state/year added."""
         # Mock the fetch_event_list method to return our sample HTML
@@ -122,7 +122,7 @@ class TestEventListParser(unittest.TestCase):
         self.assertEqual(event["state"], "CO")
         self.assertEqual(event["year"], 2020)
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_event_list")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_event_list")
     def test_get_events_no_permit(self, mock_fetch):
         """Test getting events with no permit numbers."""
         # Mock the fetch_event_list method to return HTML with no permit numbers
@@ -151,7 +151,7 @@ class TestEventListParser(unittest.TestCase):
         self.assertTrue("2020-12-02" in event["id"])
         self.assertTrue("CO" in event["id"])
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_event_list")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_event_list")
     def test_network_error(self, mock_fetch):
         """Test handling network errors."""
         # Mock the fetch_event_list method to raise a NetworkError

@@ -69,6 +69,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+.docs/*
 
 # PyBuilder
 .pybuilder/
@@ -181,8 +182,8 @@ cython_debug/
 .DS_Store
 
 # Project specific
-~/.pyusacycling/
-.pyusacycling/
+~/.usac-velodata/
+.usac-velodata/
 **/cache/
 **/.pytest_cache/
 **/samples/downloads/

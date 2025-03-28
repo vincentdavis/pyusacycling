@@ -1,12 +1,13 @@
 """Parser classes for the USA Cycling Results Parser package."""
 
+import contextlib
 import json
 import os
 import re
 import time
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import quote, urljoin
 
 import requests
@@ -32,8 +33,12 @@ class BaseParser:
     RESULTS_URL = urljoin(BASE_URL, "/results/")
     API_URL = urljoin(BASE_URL, "/results/index.php")
 
-    DEFAULT_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    DEFAULT_HEADERS: ClassVar[dict[str, str]] = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/91.0.4472.124 Safari/537.36"
+        ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
         "Cookie": "usacsess=jrkj6v50ftsqkboga0rgbqgrs1",
@@ -51,14 +56,14 @@ class BaseParser:
 
         Args:
             cache_enabled: Whether to enable response caching
-            cache_dir: Directory to store cached responses (defaults to ~/.pyusacycling/cache)
+            cache_dir: Directory to store cached responses (defaults to ~/.usac_velodata/cache)
             rate_limit: Whether to enable rate limiting
             max_retries: Maximum number of retries for failed requests
             retry_delay: Delay between retries in seconds
 
         """
         self.cache_enabled = cache_enabled
-        self.cache_dir = cache_dir or os.path.expanduser("~/.pyusacycling/cache")
+        self.cache_dir = cache_dir or os.path.expanduser("~/.usac_velodata/cache")
         self.rate_limit = rate_limit
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -212,7 +217,7 @@ class BaseParser:
                     time.sleep(sleep_time)
                 else:
                     logger.error(f"All retries failed for {url}")
-                    raise NetworkError(f"Failed to fetch {url} after {self.max_retries} attempts: {e!s}")
+                    raise NetworkError(f"Failed to fetch {url} after {self.max_retries} attempts: {e!s}") from e
 
     def _fetch_content(self, url: str, params: dict[str, Any] | None = None) -> str:
         """Fetch HTML content from a URL.
@@ -250,7 +255,7 @@ class BaseParser:
             return response.text
         except Exception as e:
             logger.error(f"Failed to fetch {url}: {e!s}")
-            raise NetworkError(f"Failed to fetch {url}: {e!s}")
+            raise NetworkError(f"Failed to fetch {url}: {e!s}") from e
 
     def _fetch_json(
         self,
@@ -308,17 +313,17 @@ class BaseParser:
                 # Sometimes USAC returns HTML instead of JSON even with application/json header
                 if "<html" in response.text.lower():
                     logger.warning(f"Expected JSON but got HTML from {url}")
-                    raise ParseError(f"Expected JSON but got HTML from {url}")
+                    raise ParseError(f"Expected JSON but got HTML from {url}") from e
                 else:
                     logger.error(f"Failed to parse JSON from {url}: {e!s}")
-                    raise ParseError(f"Failed to parse JSON from {url}: {e!s}")
+                    raise ParseError(f"Failed to parse JSON from {url}: {e!s}") from e
 
         except Exception as e:
             logger.error(f"Failed to fetch JSON from {url}: {e!s}")
-            if isinstance(e, (ParseError, NetworkError)):
+            if isinstance(e, ParseError | NetworkError):
                 raise
             else:
-                raise NetworkError(f"Failed to fetch JSON from {url}: {e!s}")
+                raise NetworkError(f"Failed to fetch JSON from {url}: {e!s}") from e
 
     def _make_soup(self, html: str) -> BeautifulSoup:
         """Create a BeautifulSoup object from HTML.
@@ -337,7 +342,7 @@ class BaseParser:
             return BeautifulSoup(html, "html.parser")
         except Exception as e:
             logger.error(f"Failed to parse HTML: {e!s}")
-            raise ParseError(f"Failed to parse HTML: {e!s}")
+            raise ParseError(f"Failed to parse HTML: {e!s}") from e
 
     def _extract_text(self, element) -> str:
         """Extract text from a BeautifulSoup element, handling None values.
@@ -354,7 +359,7 @@ class BaseParser:
         if "<" in element.get_text(strip=True):
             try:
                 return element.get_text(strip=True).split("<")[0]
-            except:
+            except Exception:
                 return element.get_text(strip=True)
         return element.get_text(strip=True)
 
@@ -519,7 +524,7 @@ class BaseParser:
             if race_id:
                 category_name = self._extract_text(item.find("a"))
                 result["categories"].append({"id": race_id, "name": category_name})
-
+        print('result', result)
         return result
 
     def fetch_race_results(self, race_id: str) -> dict[str, Any]:
@@ -1118,10 +1123,8 @@ class RaceResultsParser(BaseParser):
 
                 # Try to extract a numeric place
                 if not any([is_dnf, is_dns, is_dq]):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         place_number = int(place)
-                    except (ValueError, TypeError):
-                        pass
 
             # Create rider dictionary
             rider = {

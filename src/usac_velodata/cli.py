@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Command-line interface for the pyusacycling package."""
+"""Command-line interface for the usac_velodata package."""
 
 import argparse
 import json
@@ -23,7 +23,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         Parsed arguments
 
     """
-    parser = argparse.ArgumentParser(description="USA Cycling Results Parser", prog="pyusacycling")
+    parser = argparse.ArgumentParser(description="USA Cycling Results Parser", prog="usac_velodata")
 
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
@@ -133,7 +133,7 @@ def main(args: list[str] | None = None) -> int:
     Returns:
         Exit code (0 for success, non-zero for failure)
 
-    """
+    """  # noqa: D401
     try:
         parsed_args = parse_args(args)
 

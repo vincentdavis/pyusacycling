@@ -25,7 +25,7 @@ class TestLoggingUtils(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         # Reset logging before each test
-        root_logger = logging.getLogger("pyusacycling")
+        root_logger = logging.getLogger("usac_velodata")
         root_logger.handlers = []
         root_logger.setLevel(logging.INFO)
         root_logger.propagate = False
@@ -77,15 +77,15 @@ class TestLoggingUtils(unittest.TestCase):
             logger.info("Custom format test")
 
             output = fake_stdout.getvalue()
-            self.assertIn("INFO [pyusacycling.test]: Custom format test", output)
+            self.assertIn("INFO [usac_velodata.test]: Custom format test", output)
 
     def test_get_logger(self):
         """Test getting loggers for different components."""
         logger1 = get_logger("component1")
         logger2 = get_logger("component2")
 
-        self.assertEqual(logger1.name, "pyusacycling.component1")
-        self.assertEqual(logger2.name, "pyusacycling.component2")
+        self.assertEqual(logger1.name, "usac_velodata.component1")
+        self.assertEqual(logger2.name, "usac_velodata.component2")
         self.assertNotEqual(logger1, logger2)
 
     def test_enable_debug_logging(self):
