@@ -1,0 +1,38 @@
+# Configuration for PR labeler
+# Add 'core' label to any changes in the core module
+core:
+  - usac_velodata/client.py
+  - usac_velodata/parser.py
+
+# Add 'models' label to any changes in the models module
+models:
+  - usac_velodata/models.py
+
+# Add 'simplified-interface' label to any changes related to the simplified interface
+simplified-interface:
+  - usac_velodata/high_level.py
+  - usac_velodata/config.py
+
+# Add 'cli' label to any changes in the CLI module
+cli:
+  - usac_velodata/cli.py
+
+# Add 'docs' label to any changes in documentation
+docs:
+  - README.md
+  - examples/**/*
+  - '**/*.md'
+
+# Add 'tests' label to any changes in tests
+tests:
+  - tests/**/*
+
+# Add 'dependencies' label to any changes in package dependencies
+dependencies:
+  - setup.py
+  - requirements.txt
+  - pyproject.toml
+
+# Add 'ci-cd' label to any changes in GitHub workflows
+ci-cd:
+  - .github/workflows/**/* 

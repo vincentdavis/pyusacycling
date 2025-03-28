@@ -210,6 +210,7 @@ def to_csv(
 
     Returns:
         CSV string representation of the model(s)
+
     """
     # Convert to list if single model/dict
     items = [obj] if not isinstance(obj, list) else obj
@@ -437,27 +438,28 @@ def serialize_event_details_to_csv(event_details: EventDetails) -> str:
 
     Returns:
         A CSV string containing the serialized data.
+
     """
     # Convert to dict and flatten nested structures
     data = event_details.model_dump()
-    
+
     # Flatten arrays
     if "categories" in data:
         categories = data.pop("categories")
         for i, category in enumerate(categories):
             data[f"categories.{i}"] = category
-    
+
     if "disciplines" in data:
         disciplines = data.pop("disciplines")
         for i, discipline in enumerate(disciplines):
             for key, value in discipline.items():
                 data[f"disciplines.{i}.{key}"] = value
-    
+
     if "dates" in data:
         dates = data.pop("dates")
         for i, date in enumerate(dates):
             data[f"dates.{i}"] = date
-    
+
     return to_csv([data])
 
 
@@ -469,23 +471,24 @@ def serialize_race_result_to_csv(race_result: RaceResult) -> str:
 
     Returns:
         A CSV string containing the serialized data.
+
     """
     # Convert to dict and flatten nested structures
     data = race_result.model_dump()
-    
+
     # Flatten category
     if "category" in data:
         category_data = data.pop("category")
         for key, value in category_data.items():
             data[f"category.{key}"] = value
-    
+
     # Flatten riders
     if "riders" in data:
         riders = data.pop("riders")
         for i, rider in enumerate(riders):
             for key, value in rider.items():
                 data[f"riders.{i}.{key}"] = value
-    
+
     # Convert to list of dicts for to_csv
     return to_csv([data])
 
