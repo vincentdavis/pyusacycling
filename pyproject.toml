@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.10.6",
     "python-dateutil>=2.9.0.post0",
     "requests>=2.32.3",
+    "ruff>=0.11.2",
 ]
 
 [build-system]
@@ -22,4 +23,5 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
+    "ruff>=0.2.0",
 ]

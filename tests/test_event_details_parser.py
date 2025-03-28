@@ -35,7 +35,8 @@ class TestEventDetailsParser(unittest.TestCase):
                     Dec 2, 2020 - Dec 30, 2020</h3>
                     <div class='tablerow'>
                         <div class='tablecell'>
-                            <a href='javascript:void(0)' onclick="loadInfoID(132893,'Cross Country Ultra Endurance 12/02/2020')">
+                            <a href='javascript:void(0)' onclick="loadInfoID(132893,
+                            'Cross Country Ultra Endurance 12/02/2020')">
                                 Cross Country Ultra Endurance
                             </a>
                         </div>
@@ -43,7 +44,8 @@ class TestEventDetailsParser(unittest.TestCase):
                     </div>
                     <div class='tablerow'>
                         <div class='tablecell'>
-                            <a href='javascript:void(0)' onclick="loadInfoID(132897,'Cross Country Ultra Endurance 12/09/2020')">
+                            <a href='javascript:void(0)' onclick="loadInfoID(132897,
+                            'Cross Country Ultra Endurance 12/09/2020')">
                                 Cross Country Ultra Endurance
                             </a>
                         </div>

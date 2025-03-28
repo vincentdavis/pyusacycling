@@ -133,7 +133,7 @@ def main(args: list[str] | None = None) -> int:
     Returns:
         Exit code (0 for success, non-zero for failure)
 
-    """
+    """  # noqa: D401
     try:
         parsed_args = parse_args(args)
 

@@ -115,10 +115,7 @@ def from_json(
 
     """
     # Parse JSON string if needed
-    if isinstance(json_data, str):
-        data = json.loads(json_data)
-    else:
-        data = json_data
+    data = json.loads(json_data) if isinstance(json_data, str) else json_data
 
     # Handle list of models
     if many:
@@ -186,7 +183,7 @@ def _flatten_dict(data: dict[str, Any], prefix: str = "") -> dict[str, Any]:
             for i, item in enumerate(value[:5]):  # Limit to first 5 items
                 if isinstance(item, dict):
                     for k, v in item.items():
-                        if not isinstance(v, (dict, list)):  # Avoid nested structures
+                        if not isinstance(v, dict | list):  # Avoid nested structures
                             result[f"{new_key}.{i}.{k}"] = v
                 else:
                     result[f"{new_key}.{i}"] = item
@@ -261,7 +258,7 @@ def from_csv(
     model_class: type[M],
     has_header: bool = True,
 ) -> list[M]:
-    """Convert CSV data to a list of Pydantic models.
+    r"""Convert CSV data to a list of Pydantic models.
 
     Args:
         csv_data: CSV string to parse
@@ -300,11 +297,7 @@ def from_csv(
     dict_rows = []
     for row in data_rows:
         # Zip header with values, but only take relevant fields for the model
-        row_data = {}
-        for name, value in zip(header, row, strict=False):
-            # Skip compound fields (with dots)
-            if "." not in name:
-                row_data[name] = value
+        row_data = {name: value for name, value in zip(header, row, strict=False) if "." not in name}
         dict_rows.append(row_data)
 
     # Convert to models
