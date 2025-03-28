@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Any, TypeVar, cast
 
 # Configure base logger
-logger = logging.getLogger("pyusacycling")
+logger = logging.getLogger("usac_velodata")
 
 # Default log format for the library
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -35,7 +35,7 @@ LOG_LEVELS = {
 T = TypeVar("T")
 
 # Cache directory setup
-DEFAULT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "pyusacycling_cache")
+DEFAULT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "usac_velodata_cache")
 
 
 class CacheError(Exception):
@@ -57,7 +57,7 @@ def configure_logging(
 ) -> None:
     """Configure the package's logging system with extensive customization.
 
-    This function sets up the logger for the pyusacycling package with options
+    This function sets up the logger for the usac_velodata package with options
     for console output, file output, format customization, and log level settings.
 
     Args:
@@ -76,7 +76,7 @@ def configure_logging(
         configure_logging()
 
         # Debug level to both console and file
-        configure_logging(level='debug', log_file='pyusacycling.log')
+        configure_logging(level='debug', log_file='usac_velodata.log')
 
         # Different levels for console and file
         configure_logging(level='error', log_file='errors.log',
@@ -129,7 +129,7 @@ def configure_logging(
 def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger instance for a specific module or component.
 
-    Creates a child logger of the main pyusacycling logger with the specified name.
+    Creates a child logger of the main usac_velodata logger with the specified name.
     This allows for component-specific logging control.
 
     Args:

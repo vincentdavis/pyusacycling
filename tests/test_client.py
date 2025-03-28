@@ -71,8 +71,15 @@ class TestUSACyclingClient(unittest.TestCase):
             "location": "Colorado Springs",
             "state": "CO",
             "year": 2020,
-            "disciplines": ["Cross Country Ultra Endurance"],
+            "disciplines": [],
             "categories": [],
+            "is_usac_sanctioned": True,
+            "promoter": None,
+            "promoter_email": None,
+            "website": None,
+            "registration_url": None,
+            "description": None,
+            "dates": []
         }
 
         # Get event details
@@ -84,7 +91,7 @@ class TestUSACyclingClient(unittest.TestCase):
         self.assertEqual(event_details.name, "USA Cycling December VRL")
         self.assertEqual(event_details.state, "CO")
         self.assertEqual(event_details.year, 2020)
-        self.assertEqual(event_details.disciplines, ["Cross Country Ultra Endurance"])
+        self.assertEqual(event_details.disciplines, [])
 
     @mock.patch("src.usac_velodata.parser.RaceResultsParser.parse_race_categories")
     def test_get_race_categories(self, mock_parse_race_categories):
@@ -157,44 +164,27 @@ class TestUSACyclingClient(unittest.TestCase):
         self.assertEqual(race_results.riders[0].place, "1")
 
     @mock.patch("src.usac_velodata.parser.EventDetailsParser.fetch_permit_page")
-    @mock.patch("src.usac_velodata.parser.BaseParser._extract_load_info_id")
-    @mock.patch("src.usac_velodata.parser.BaseParser._make_soup")
-    @mock.patch("src.usac_velodata.parser.BaseParser._extract_text")
     def test_get_disciplines_for_event(
-        self, mock_extract_text, mock_make_soup, mock_extract_load_info_id, mock_fetch_permit_page
+        self, mock_fetch_permit_page
     ):
         """Test getting disciplines for an event."""
         # Mock fetch_permit_page
-        mock_fetch_permit_page.return_value = "<html><body></body></html>"
-
-        # Mock _make_soup
-        mock_soup = mock.MagicMock()
-        mock_make_soup.return_value = mock_soup
-
-        # Mock select
-        link1 = mock.MagicMock()
-        link1.get.return_value = "loadInfoID(132893,'Cross Country Ultra Endurance 12/02/2020')"
-        link2 = mock.MagicMock()
-        link2.get.return_value = "loadInfoID(132894,'Road 12/03/2020')"
-        mock_soup.select.return_value = [link1, link2]
-
-        # Mock _extract_load_info_id
-        mock_extract_load_info_id.side_effect = ["132893", "132894"]
-
-        # Mock _extract_text
-        mock_extract_text.side_effect = ["Cross Country Ultra Endurance 12/02/2020", "Road 12/03/2020"]
+        # Load sample data from file
+        with open("samples/permit_pages/2020-26.html", "r") as f:
+            mock_fetch_permit_page.return_value = f.read()
 
         # Get disciplines
         disciplines = self.client.get_disciplines_for_event("2020-26")
 
         # Verify results
-        self.assertEqual(len(disciplines), 2)
+        self.assertEqual(len(disciplines), 5)
         self.assertEqual(disciplines[0]["id"], "132893")
         self.assertEqual(disciplines[0]["name"], "Cross Country Ultra Endurance")
         self.assertEqual(disciplines[0]["label"], "Cross Country Ultra Endurance 12/02/2020")
-        self.assertEqual(disciplines[1]["id"], "132894")
-        self.assertEqual(disciplines[1]["name"], "Road")
-        self.assertEqual(disciplines[1]["label"], "Road 12/03/2020")
+        self.assertEqual(disciplines[1]["id"], "132897")
+        self.assertEqual(disciplines[1]["name"], "Cross Country Ultra Endurance")
+        self.assertEqual(disciplines[1]["label"], "Cross Country Ultra Endurance 12/09/2020")
+
 
     @mock.patch("src.usac_velodata.client.USACyclingClient.get_event_details")
     @mock.patch("src.usac_velodata.client.USACyclingClient.get_disciplines_for_event")
@@ -244,8 +234,8 @@ class TestUSACyclingClient(unittest.TestCase):
         self.assertEqual(event_data["event"], event_details)
         self.assertEqual(len(event_data["disciplines"]), 1)
         self.assertEqual(event_data["disciplines"][0]["id"], "132893")
-        self.assertEqual(len(event_data["categories"]["132893"]), 1)
-        self.assertEqual(event_data["categories"]["132893"][0], category)
+        self.assertEqual(len(event_data["categories"]), 1)
+        self.assertEqual(event_data["categories"][0], category)
         self.assertEqual(len(event_data["results"]), 1)
         self.assertEqual(event_data["results"]["1337864"], race_result)
 

@@ -1,4 +1,4 @@
-"""Main entry point for the pyusacycling package when executed as a module."""
+"""Main entry point for the usac_velodata package when executed as a module."""
 
 import sys
 

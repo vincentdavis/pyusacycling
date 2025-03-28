@@ -23,7 +23,7 @@ class TestCaching(unittest.TestCase):
     def setUp(self):
         """Set up a clean test environment."""
         # Create a temporary directory for cache tests
-        self.test_cache_dir = tempfile.mkdtemp(prefix="pyusacycling_test_cache_")
+        self.test_cache_dir = tempfile.mkdtemp(prefix="usac_velodata_test_cache_")
 
         # Create a sample function that knows if it's been called
         self.call_count = 0
@@ -243,7 +243,7 @@ class TestCaching(unittest.TestCase):
     def test_cache_class_namespaces(self):
         """Test cache namespaces."""
         # Mock the namespace-based clearing for this test
-        with mock.patch("pyusacycling.utils.Cache.clear") as mock_clear:
+        with mock.patch("usac_velodata.utils.Cache.clear") as mock_clear:
             # Make sure clear returns 1 to satisfy the test assertion
             mock_clear.return_value = 1
 

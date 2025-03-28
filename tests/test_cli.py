@@ -179,7 +179,7 @@ class TestMainFunction(unittest.TestCase):
     """Tests for the main CLI function."""
 
     @mock.patch("sys.stdout", new_callable=io.StringIO)
-    @mock.patch("pyusacycling.cli.USACyclingClient")
+    @mock.patch("usac_velodata.cli.USACyclingClient")
     def test_events_command(self, mock_client_class, mock_stdout):
         """Test events command execution."""
         # Create a mock client instance
@@ -222,7 +222,7 @@ class TestMainFunction(unittest.TestCase):
         self.assertEqual(result, 0)
 
     @mock.patch("sys.stderr", new_callable=io.StringIO)
-    @mock.patch("pyusacycling.cli.USACyclingClient")
+    @mock.patch("usac_velodata.cli.USACyclingClient")
     def test_events_command_validation_error(self, mock_client_class, mock_stderr):
         """Test events command with validation error."""
         # Create a mock client instance
@@ -230,7 +230,7 @@ class TestMainFunction(unittest.TestCase):
         mock_client_class.return_value = mock_client
 
         # Mock the get_events method to raise a ValidationError
-        from pyusacycling.exceptions import ValidationError
+        from usac_velodata.exceptions import ValidationError
 
         mock_client.get_events.side_effect = ValidationError("Invalid state code")
 
@@ -245,7 +245,7 @@ class TestMainFunction(unittest.TestCase):
         self.assertEqual(result, 1)
 
     @mock.patch("sys.stdout", new_callable=io.StringIO)
-    @mock.patch("pyusacycling.cli.USACyclingClient")
+    @mock.patch("usac_velodata.cli.USACyclingClient")
     def test_complete_command(self, mock_client_class, mock_stdout):
         """Test complete command execution."""
         # Create a mock client instance

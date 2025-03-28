@@ -56,14 +56,14 @@ class BaseParser:
 
         Args:
             cache_enabled: Whether to enable response caching
-            cache_dir: Directory to store cached responses (defaults to ~/.pyusacycling/cache)
+            cache_dir: Directory to store cached responses (defaults to ~/.usac_velodata/cache)
             rate_limit: Whether to enable rate limiting
             max_retries: Maximum number of retries for failed requests
             retry_delay: Delay between retries in seconds
 
         """
         self.cache_enabled = cache_enabled
-        self.cache_dir = cache_dir or os.path.expanduser("~/.pyusacycling/cache")
+        self.cache_dir = cache_dir or os.path.expanduser("~/.usac_velodata/cache")
         self.rate_limit = rate_limit
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -524,7 +524,7 @@ class BaseParser:
             if race_id:
                 category_name = self._extract_text(item.find("a"))
                 result["categories"].append({"id": race_id, "name": category_name})
-
+        print('result', result)
         return result
 
     def fetch_race_results(self, race_id: str) -> dict[str, Any]:

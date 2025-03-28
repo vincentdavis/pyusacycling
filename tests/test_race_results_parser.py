@@ -95,7 +95,7 @@ class TestRaceResultsParser(unittest.TestCase):
             """,
         }
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_race_results")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_race_results")
     def test_parse(self, mock_fetch):
         """Test parsing race results."""
         # Mock the fetch_race_results method
@@ -119,7 +119,7 @@ class TestRaceResultsParser(unittest.TestCase):
         self.assertFalse(first_rider["is_dns"])
         self.assertFalse(first_rider["is_dq"])
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_race_results")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_race_results")
     def test_parse_empty_results(self, mock_fetch):
         """Test parsing empty race results."""
         # Mock empty response
@@ -133,7 +133,7 @@ class TestRaceResultsParser(unittest.TestCase):
         self.assertEqual(race_results["id"], "1337864")
         self.assertEqual(race_results["riders"], [])
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_race_results")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_race_results")
     def test_network_error(self, mock_fetch):
         """Test handling of network errors during race results parsing."""
         # Mock network error
@@ -143,7 +143,7 @@ class TestRaceResultsParser(unittest.TestCase):
         with self.assertRaises(NetworkError):
             self.parser.parse("1337864")
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_load_info")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_load_info")
     def test_parse_race_categories(self, mock_fetch):
         """Test parsing race categories from load info."""
         # Mock the fetch_load_info method
@@ -164,7 +164,7 @@ class TestRaceResultsParser(unittest.TestCase):
         self.assertEqual(first_category["gender"], "Men")
         self.assertEqual(first_category["category_rank"], "A")
 
-    @mock.patch("pyusacycling.parser.BaseParser.fetch_load_info")
+    @mock.patch("usac_velodata.parser.BaseParser.fetch_load_info")
     def test_parse_empty_categories(self, mock_fetch):
         """Test parsing empty race categories."""
         # Mock empty response
@@ -176,7 +176,7 @@ class TestRaceResultsParser(unittest.TestCase):
         # Verify empty list is returned
         self.assertEqual(categories, [])
 
-    @mock.patch("pyusacycling.parser.RaceResultsParser.parse")
+    @mock.patch("usac_velodata.parser.RaceResultsParser.parse")
     def test_get_race_results(self, mock_parse):
         """Test getting race results with category information."""
         # Mock the parse method
