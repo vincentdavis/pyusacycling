@@ -1774,7 +1774,7 @@ class FlyerFetcher(BaseParser):
                 for state in states:
                     try:
                         events = client.get_events(state, year)
-                        permits.extend([event["permit_number"] for event in events if "permit_number" in event])
+                        permits.extend([event.permit_number for event in events])
                         logger.info(f"Found {len(events)} events for {state} {year}")
                     except Exception as e:
                         logger.error(f"Error getting events for {state} {year}: {e!s}")
