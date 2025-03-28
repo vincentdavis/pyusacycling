@@ -197,58 +197,48 @@ def _flatten_dict(data: dict[str, Any], prefix: str = "") -> dict[str, Any]:
 
 
 def to_csv(
-    obj: BaseModel | list[BaseModel],
+    obj: BaseModel | list[BaseModel] | dict | list[dict],
     include_header: bool = True,
     exclude_none: bool = False,
 ) -> str:
     """Convert a model or list of models to CSV format.
 
     Args:
-        obj: The Pydantic model or list of models to convert to CSV
+        obj: The Pydantic model, dictionary, or list of models/dictionaries to convert to CSV
         include_header: Whether to include header row with field names
         exclude_none: Whether to exclude None values
 
     Returns:
         CSV string representation of the model(s)
-
-    Examples:
-        >>> event = Event(id="123", name="Race", ...)
-        >>> csv_str = to_csv(event)
-        >>>
-        >>> # Convert multiple events to CSV
-        >>> events = [event1, event2, event3]
-        >>> csv_str = to_csv(events)
-
     """
-    # Convert to list if single model
-    models = [obj] if isinstance(obj, BaseModel) else obj
+    # Convert to list if single model/dict
+    items = [obj] if not isinstance(obj, list) else obj
 
     # Handle empty list
-    if not models:
+    if not items:
         return ""
 
-    # Convert models to dictionaries
-    dicts = [model.model_dump(exclude_none=exclude_none) for model in models]
+    # Convert models to dictionaries if needed
+    dicts = []
+    for item in items:
+        if isinstance(item, BaseModel):
+            dicts.append(item.model_dump(exclude_none=exclude_none))
+        else:
+            dicts.append(item)
 
-    # Flatten all dictionaries
-    flat_dicts = [_flatten_dict(d) for d in dicts]
+    # Get field names from first dictionary
+    field_names = list(dicts[0].keys())
 
-    # Get all possible field names from all dictionaries
-    fieldnames = set()
-    for d in flat_dicts:
-        fieldnames.update(d.keys())
-
-    # Sort fieldnames for consistent output
-    sorted_fieldnames = sorted(fieldnames)
-
-    # Create CSV output
+    # Create CSV writer
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=sorted_fieldnames)
+    writer = csv.DictWriter(output, fieldnames=field_names)
 
+    # Write header if requested
     if include_header:
         writer.writeheader()
 
-    writer.writerows(flat_dicts)
+    # Write data rows
+    writer.writerows(dicts)
 
     return output.getvalue()
 
@@ -439,38 +429,65 @@ def serialize_event_to_csv(
     return to_csv(event, include_header=include_header)
 
 
-def serialize_event_details_to_csv(
-    event_details: EventDetails | list[EventDetails],
-    include_header: bool = True,
-) -> str:
-    """Serialize an EventDetails or list of EventDetails to CSV.
+def serialize_event_details_to_csv(event_details: EventDetails) -> str:
+    """Serialize EventDetails to CSV format.
 
     Args:
-        event_details: EventDetails model(s) to serialize
-        include_header: Whether to include header row
+        event_details: The EventDetails to serialize.
 
     Returns:
-        CSV string representation of the EventDetails
-
+        A CSV string containing the serialized data.
     """
-    return to_csv(event_details, include_header=include_header)
+    # Convert to dict and flatten nested structures
+    data = event_details.model_dump()
+    
+    # Flatten arrays
+    if "categories" in data:
+        categories = data.pop("categories")
+        for i, category in enumerate(categories):
+            data[f"categories.{i}"] = category
+    
+    if "disciplines" in data:
+        disciplines = data.pop("disciplines")
+        for i, discipline in enumerate(disciplines):
+            for key, value in discipline.items():
+                data[f"disciplines.{i}.{key}"] = value
+    
+    if "dates" in data:
+        dates = data.pop("dates")
+        for i, date in enumerate(dates):
+            data[f"dates.{i}"] = date
+    
+    return to_csv([data])
 
 
-def serialize_race_result_to_csv(
-    race_result: RaceResult | list[RaceResult],
-    include_header: bool = True,
-) -> str:
-    """Serialize a RaceResult or list of RaceResults to CSV.
+def serialize_race_result_to_csv(race_result: RaceResult) -> str:
+    """Serialize a RaceResult to CSV format.
 
     Args:
-        race_result: RaceResult model(s) to serialize
-        include_header: Whether to include header row
+        race_result: The RaceResult to serialize.
 
     Returns:
-        CSV string representation of the RaceResult(s)
-
+        A CSV string containing the serialized data.
     """
-    return to_csv(race_result, include_header=include_header)
+    # Convert to dict and flatten nested structures
+    data = race_result.model_dump()
+    
+    # Flatten category
+    if "category" in data:
+        category_data = data.pop("category")
+        for key, value in category_data.items():
+            data[f"category.{key}"] = value
+    
+    # Flatten riders
+    if "riders" in data:
+        riders = data.pop("riders")
+        for i, rider in enumerate(riders):
+            for key, value in rider.items():
+                data[f"riders.{i}.{key}"] = value
+    
+    # Convert to list of dicts for to_csv
+    return to_csv([data])
 
 
 def serialize_rider_to_csv(

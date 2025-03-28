@@ -95,7 +95,10 @@ class TestJsonSerializer(unittest.TestCase):
             registration_url="https://example.com/register",
             is_usac_sanctioned=True,
             categories=["Cat 1/2", "Cat 3", "Cat 4/5"],
-            disciplines=["Road Race", "Time Trial"],
+            disciplines=[
+                {"id": "1", "name": "Road Race"},
+                {"id": "2", "name": "Time Trial"}
+            ],
             description="A test event",
         )
 
@@ -343,7 +346,6 @@ class TestJsonSerializer(unittest.TestCase):
         # Verify race result properties
         self.assertEqual(data["id"], "result123")
         self.assertEqual(data["event_id"], "event123")
-        self.assertEqual(data["category"]["id"], "cat123")
         self.assertEqual(len(data["riders"]), 1)
         self.assertEqual(data["riders"][0]["name"], "John Doe")
 

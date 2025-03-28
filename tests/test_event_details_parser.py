@@ -60,29 +60,30 @@ class TestEventDetailsParser(unittest.TestCase):
         """Test parsing event details from permit page."""
         # Mock the fetch_permit_page method to return our sample HTML
         mock_fetch.return_value = self.sample_html
-
+        
         # Parse the event details
         event_details = self.parser.parse("2020-26")
-
+        
         # Verify event details were parsed correctly
         self.assertIsInstance(event_details, dict)
-
+        
         # Check required fields
         self.assertEqual(event_details["id"], "2020-26")
         self.assertEqual(event_details["permit_number"], "2020-26")
         self.assertEqual(event_details["year"], 2020)
-
+        
         # Check name and location
         self.assertEqual(event_details["name"], "USA Cycling December VRL")
         self.assertEqual(event_details["location"], "Colorado Springs")
         self.assertEqual(event_details["state"], "CO")
-
+        
         # Check dates
         self.assertEqual(event_details["start_date"], date(2020, 12, 2))
         self.assertEqual(event_details["end_date"], date(2020, 12, 30))
-
+        
         # Check disciplines
-        self.assertIn("Cross Country Ultra Endurance", event_details["disciplines"])
+        disciplines = [d["discipline"] for d in event_details["disciplines"]]
+        self.assertIn("Cross Country Ultra Endurance", disciplines)
 
         # Verify required fields are present
         required_fields = [
