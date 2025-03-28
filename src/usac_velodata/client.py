@@ -13,7 +13,7 @@ from pydantic import ValidationError as pydantic_ValidationError
 
 from .exceptions import NetworkError, ParseError, ValidationError
 from .models import Event, EventDetails, RaceCategory, RaceResult, Rider
-from .parser import BaseParser, EventDetailsParser, EventListParser, RaceResultsParser
+from .parser import BaseParser, EventDetailsParser, EventListParser, FlyerFetcher, RaceResultsParser
 from .utils import configure_logging, logger
 
 
@@ -561,3 +561,139 @@ class USACyclingClient:
 
         # Return the parsed date or today's date if parsing fails
         return parsed_date or date.today()
+
+    def get_active_events(self) -> list[EventDetails]:
+        """Get active events from the USA Cycling website."""
+        pass # TODO: Implement this method
+
+    def fetch_flyer(
+        self,
+        permit: str,
+        storage_dir: str = "./flyers",
+        use_s3: bool = False,
+        s3_bucket: str | None = None,
+        s3_prefix: str = "flyers",
+    ) -> dict[str, Any]:
+        """Fetch a flyer for a specific event permit.
+
+        This method fetches a flyer (promotional material) for a USA Cycling event permit.
+        The flyer can be in various formats (PDF, DOC, DOCX, HTML) and is stored locally
+        or in S3 with gzip compression.
+
+        Args:
+            permit: USA Cycling permit number (e.g., 2020-123)
+            storage_dir: Directory to store flyers locally
+            use_s3: Whether to store flyers in S3
+            s3_bucket: S3 bucket name (required if use_s3 is True)
+            s3_prefix: S3 prefix for flyer storage
+
+        Returns:
+            Dictionary with fetched flyer details
+
+        Raises:
+            NetworkError: If there's a network error
+            ParseError: If there's an error parsing the response
+
+        """
+        fetcher = FlyerFetcher(
+            cache_enabled=self.cache_enabled,
+            cache_dir=self.cache_dir,
+            rate_limit=self.rate_limit,
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+            storage_dir=storage_dir,
+            use_s3=use_s3,
+            s3_bucket=s3_bucket,
+            s3_prefix=s3_prefix,
+        )
+
+        return fetcher.fetch_flyer(permit)
+
+    def fetch_flyers_batch(
+        self,
+        start_year: int,
+        end_year: int,
+        limit: int = 100,
+        delay: int = 3,
+        storage_dir: str = "./flyers",
+        use_s3: bool = False,
+        s3_bucket: str | None = None,
+        s3_prefix: str = "flyers",
+    ) -> dict[str, Any]:
+        """Fetch flyers for events in a year range.
+
+        This method fetches flyers for USA Cycling events in the specified year range.
+        It retrieves event information from the USA Cycling website and fetches flyers
+        for each event up to the specified limit.
+
+        Args:
+            start_year: Start year for fetching flyers
+            end_year: End year for fetching flyers
+            limit: Maximum number of flyers to fetch
+            delay: Delay between requests in seconds
+            storage_dir: Directory to store flyers locally
+            use_s3: Whether to store flyers in S3
+            s3_bucket: S3 bucket name (required if use_s3 is True)
+            s3_prefix: S3 prefix for flyer storage
+
+        Returns:
+            Dictionary with statistics about the fetched flyers
+
+        Raises:
+            NetworkError: If there's a network error
+            ParseError: If there's an error parsing the response
+
+        """
+        fetcher = FlyerFetcher(
+            cache_enabled=self.cache_enabled,
+            cache_dir=self.cache_dir,
+            rate_limit=self.rate_limit,
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+            storage_dir=storage_dir,
+            use_s3=use_s3,
+            s3_bucket=s3_bucket,
+            s3_prefix=s3_prefix,
+        )
+
+        return fetcher.fetch_flyers_batch(
+            start_year=start_year,
+            end_year=end_year,
+            limit=limit,
+            delay=delay,
+        )
+
+    def list_flyers(
+        self,
+        storage_dir: str = "./flyers",
+        use_s3: bool = False,
+        s3_bucket: str | None = None,
+        s3_prefix: str = "flyers",
+    ) -> list[dict[str, Any]]:
+        """List all flyers in storage.
+
+        This method lists all flyers stored locally or in S3.
+
+        Args:
+            storage_dir: Directory where flyers are stored locally
+            use_s3: Whether flyers are stored in S3
+            s3_bucket: S3 bucket name (required if use_s3 is True)
+            s3_prefix: S3 prefix for flyer storage
+
+        Returns:
+            List of flyer details
+
+        """
+        fetcher = FlyerFetcher(
+            cache_enabled=self.cache_enabled,
+            cache_dir=self.cache_dir,
+            rate_limit=self.rate_limit,
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+            storage_dir=storage_dir,
+            use_s3=use_s3,
+            s3_bucket=s3_bucket,
+            s3_prefix=s3_prefix,
+        )
+
+        return fetcher.list_flyers()

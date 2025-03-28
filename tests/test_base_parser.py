@@ -47,7 +47,6 @@ class TestBaseParser(unittest.TestCase):
 
         # Fetch content
         content = self.parser._fetch_content(self.event_list_url)
-        print(content)
         # Verify
         self.assertEqual(content, "<html><body>Test content</body></html>")
         mock_request.assert_called_once()

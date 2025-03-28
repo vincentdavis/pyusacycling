@@ -87,6 +87,35 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     complete_parser.add_argument("--output", choices=["json", "csv"], default="json", help="Output format")
     complete_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
 
+    # Fetch a single flyer command
+    flyer_parser = subparsers.add_parser("fetch-flyer", help="Fetch a flyer for a specific event")
+    flyer_parser.add_argument("--permit", required=True, help="USA Cycling permit number (e.g., 2020-123)")
+    flyer_parser.add_argument("--storage-dir", default="./flyers", help="Directory to store flyers")
+    flyer_parser.add_argument("--s3-bucket", help="S3 bucket to store flyers")
+    flyer_parser.add_argument("--s3-prefix", default="flyers", help="S3 prefix for flyer storage")
+    flyer_parser.add_argument("--output", choices=["json", "csv"], default="json", help="Output format")
+    flyer_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
+
+    # Fetch multiple flyers command
+    flyers_parser = subparsers.add_parser("fetch-flyers", help="Fetch flyers for events in a year range")
+    flyers_parser.add_argument("--start-year", type=int, required=True, help="Start year for fetching flyers")
+    flyers_parser.add_argument("--end-year", type=int, required=True, help="End year for fetching flyers")
+    flyers_parser.add_argument("--limit", type=int, default=100, help="Maximum number of flyers to fetch")
+    flyers_parser.add_argument("--delay", type=int, default=3, help="Delay between requests in seconds")
+    flyers_parser.add_argument("--storage-dir", default="./flyers", help="Directory to store flyers")
+    flyers_parser.add_argument("--s3-bucket", help="S3 bucket to store flyers")
+    flyers_parser.add_argument("--s3-prefix", default="flyers", help="S3 prefix for flyer storage")
+    flyers_parser.add_argument("--output", choices=["json", "csv"], default="json", help="Output format")
+    flyers_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
+
+    # List flyers command
+    list_flyers_parser = subparsers.add_parser("list-flyers", help="List all flyers in storage")
+    list_flyers_parser.add_argument("--storage-dir", default="./flyers", help="Directory where flyers are stored")
+    list_flyers_parser.add_argument("--s3-bucket", help="S3 bucket where flyers are stored")
+    list_flyers_parser.add_argument("--s3-prefix", default="flyers", help="S3 prefix for flyer storage")
+    list_flyers_parser.add_argument("--output", choices=["json", "csv"], default="json", help="Output format")
+    list_flyers_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
+
     return parser.parse_args(args)
 
 
@@ -219,6 +248,93 @@ def main(args: list[str] | None = None) -> int:
                     print_output(event_details, parsed_args.output, parsed_args.pretty)
 
             except (NetworkError, ParseError) as e:
+                print(f"Error: {e!s}", file=sys.stderr)
+                return 1
+
+        elif parsed_args.command == "fetch-flyer":
+            try:
+                from .parser import FlyerFetcher
+
+                # Determine if we're using S3
+                use_s3 = parsed_args.s3_bucket is not None
+
+                # Create flyer fetcher
+                fetcher = FlyerFetcher(
+                    cache_enabled=not parsed_args.no_cache,
+                    cache_dir=parsed_args.cache_dir,
+                    rate_limit=not parsed_args.no_rate_limit,
+                    storage_dir=parsed_args.storage_dir,
+                    use_s3=use_s3,
+                    s3_bucket=parsed_args.s3_bucket,
+                    s3_prefix=parsed_args.s3_prefix,
+                )
+
+                # Fetch flyer
+                result = fetcher.fetch_flyer(parsed_args.permit)
+                print_output(result, parsed_args.output, parsed_args.pretty)
+
+                # Return error code if there was an error
+                if result.get("status") == "error":
+                    return 1
+
+            except (NetworkError, ParseError, ImportError) as e:
+                print(f"Error: {e!s}", file=sys.stderr)
+                return 1
+
+        elif parsed_args.command == "fetch-flyers":
+            try:
+                from .parser import FlyerFetcher
+
+                # Determine if we're using S3
+                use_s3 = parsed_args.s3_bucket is not None
+
+                # Create flyer fetcher
+                fetcher = FlyerFetcher(
+                    cache_enabled=not parsed_args.no_cache,
+                    cache_dir=parsed_args.cache_dir,
+                    rate_limit=not parsed_args.no_rate_limit,
+                    storage_dir=parsed_args.storage_dir,
+                    use_s3=use_s3,
+                    s3_bucket=parsed_args.s3_bucket,
+                    s3_prefix=parsed_args.s3_prefix,
+                )
+
+                # Fetch flyers
+                result = fetcher.fetch_flyers_batch(
+                    start_year=parsed_args.start_year,
+                    end_year=parsed_args.end_year,
+                    limit=parsed_args.limit,
+                    delay=parsed_args.delay,
+                )
+                print_output(result, parsed_args.output, parsed_args.pretty)
+
+            except (NetworkError, ParseError, ImportError) as e:
+                print(f"Error: {e!s}", file=sys.stderr)
+                return 1
+
+        elif parsed_args.command == "list-flyers":
+            try:
+                from .parser import FlyerFetcher
+
+                # Determine if we're using S3
+                use_s3 = parsed_args.s3_bucket is not None
+
+                # Create flyer fetcher
+                fetcher = FlyerFetcher(
+                    cache_enabled=not parsed_args.no_cache,
+                    cache_dir=parsed_args.cache_dir,
+                    rate_limit=not parsed_args.no_rate_limit,
+                    storage_dir=parsed_args.storage_dir,
+                    use_s3=use_s3,
+                    s3_bucket=parsed_args.s3_bucket,
+                    s3_prefix=parsed_args.s3_prefix,
+                )
+
+                # List flyers
+                flyers = fetcher.list_flyers()
+                print_output(flyers, parsed_args.output, parsed_args.pretty)
+
+            except (ImportError) as e:
                 print(f"Error: {e!s}", file=sys.stderr)
                 return 1
 

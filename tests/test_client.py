@@ -251,6 +251,112 @@ class TestUSACyclingClient(unittest.TestCase):
         today = date.today()
         self.assertEqual(self.client._parse_date("Invalid date"), today)
 
+    @mock.patch("src.usac_velodata.client.FlyerFetcher")
+    def test_fetch_flyer(self, mock_flyer_fetcher_class):
+        """Test the fetch_flyer method."""
+        # Set up mock
+        mock_fetcher = mock.MagicMock()
+        mock_flyer_fetcher_class.return_value = mock_fetcher
+        mock_fetcher.fetch_flyer.return_value = {
+            "status": "success",
+            "permit": "2020-123",
+            "filename": "2020_123.pdf",
+        }
+
+        # Call the method
+        result = self.client.fetch_flyer(
+            permit="2020-123",
+            storage_dir="./test_flyers",
+            use_s3=False,
+        )
+
+        # Verify the result
+        self.assertEqual(result["status"], "success")
+        
+        # Verify that FlyerFetcher was initialized correctly
+        mock_flyer_fetcher_class.assert_called_once()
+        call_kwargs = mock_flyer_fetcher_class.call_args[1]
+        self.assertEqual(call_kwargs["storage_dir"], "./test_flyers")
+        self.assertEqual(call_kwargs["use_s3"], False)
+        
+        # Verify that fetch_flyer was called with correct args
+        mock_fetcher.fetch_flyer.assert_called_once_with("2020-123")
+
+    @mock.patch("src.usac_velodata.client.FlyerFetcher")
+    def test_fetch_flyers_batch(self, mock_flyer_fetcher_class):
+        """Test the fetch_flyers_batch method."""
+        # Set up mock
+        mock_fetcher = mock.MagicMock()
+        mock_flyer_fetcher_class.return_value = mock_fetcher
+        mock_fetcher.fetch_flyers_batch.return_value = {
+            "total_processed": 3,
+            "fetched": 2,
+            "existing": 1,
+            "errors": 0,
+        }
+
+        # Call the method
+        result = self.client.fetch_flyers_batch(
+            start_year=2020,
+            end_year=2021,
+            limit=10,
+            delay=5,
+            storage_dir="./test_flyers",
+            use_s3=False,
+        )
+
+        # Verify the result
+        self.assertEqual(result["total_processed"], 3)
+        
+        # Verify that FlyerFetcher was initialized correctly
+        mock_flyer_fetcher_class.assert_called_once()
+        call_kwargs = mock_flyer_fetcher_class.call_args[1]
+        self.assertEqual(call_kwargs["storage_dir"], "./test_flyers")
+        self.assertEqual(call_kwargs["use_s3"], False)
+        
+        # Verify that fetch_flyers_batch was called with correct args
+        mock_fetcher.fetch_flyers_batch.assert_called_once()
+        call_args = mock_fetcher.fetch_flyers_batch.call_args[1]
+        self.assertEqual(call_args["start_year"], 2020)
+        self.assertEqual(call_args["end_year"], 2021)
+        self.assertEqual(call_args["limit"], 10)
+        self.assertEqual(call_args["delay"], 5)
+
+    @mock.patch("src.usac_velodata.client.FlyerFetcher")
+    def test_list_flyers(self, mock_flyer_fetcher_class):
+        """Test the list_flyers method."""
+        # Set up mock
+        mock_fetcher = mock.MagicMock()
+        mock_flyer_fetcher_class.return_value = mock_fetcher
+        mock_fetcher.list_flyers.return_value = [
+            {
+                "filename": "2020_123.pdf",
+                "size": 1024,
+                "last_modified": "2023-01-01T00:00:00",
+                "storage": "local",
+                "path": "./test_flyers/2020_123.pdf.gz"
+            }
+        ]
+
+        # Call the method
+        result = self.client.list_flyers(
+            storage_dir="./test_flyers",
+            use_s3=False,
+        )
+
+        # Verify the result
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["filename"], "2020_123.pdf")
+        
+        # Verify that FlyerFetcher was initialized correctly
+        mock_flyer_fetcher_class.assert_called_once()
+        call_kwargs = mock_flyer_fetcher_class.call_args[1]
+        self.assertEqual(call_kwargs["storage_dir"], "./test_flyers")
+        self.assertEqual(call_kwargs["use_s3"], False)
+        
+        # Verify that list_flyers was called
+        mock_fetcher.list_flyers.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

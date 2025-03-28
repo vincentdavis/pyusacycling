@@ -139,11 +139,11 @@ class EventDetails(BaseModel):
     id: str
     name: str
     permit_number: str
-    start_date: date
-    end_date: date
-    location: str
-    state: str
-    year: int
+    start_date: date | None = None
+    end_date: date | None = None
+    location: str | None = None
+    state: str | None = None
+    year: int | None = None
     event_type: EventType | None = None
     promoter: str | None = None
     promoter_email: str | None = None

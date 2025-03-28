@@ -168,6 +168,7 @@ class BaseParser:
         data: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
         json_data: dict[str, Any] | None = None,
+        follow_redirects: bool = True,
     ) -> requests.Response:
         """Fetch a URL with retries for failed requests.
 
@@ -178,6 +179,7 @@ class BaseParser:
             data: Form data
             headers: HTTP headers
             json_data: JSON data for POST requests
+            follow_redirects: Whether to follow redirects
 
         Returns:
             requests.Response object
@@ -193,7 +195,14 @@ class BaseParser:
         for attempt in range(self.max_retries):
             try:
                 response = self.session.request(
-                    method=method, url=url, params=params, data=data, headers=merged_headers, json=json_data, timeout=30
+                    method=method,
+                    url=url,
+                    params=params,
+                    data=data,
+                    headers=merged_headers,
+                    json=json_data,
+                    timeout=30,
+                    allow_redirects=follow_redirects,
                 )
 
                 # Check for rate limiting
@@ -524,7 +533,6 @@ class BaseParser:
             if race_id:
                 category_name = self._extract_text(item.find("a"))
                 result["categories"].append({"id": race_id, "name": category_name})
-        print('result', result)
         return result
 
     def fetch_race_results(self, race_id: str) -> dict[str, Any]:
@@ -1310,3 +1318,567 @@ class RaceResultsParser(BaseParser):
                 race_results["date"] = category_info["race_date"]
 
         return race_results
+
+
+class FlyerFetcher(BaseParser):
+    """Parser for fetching and processing event flyers from USA Cycling website.
+
+    This class provides functionality to fetch event flyers (promotional materials)
+    from the USA Cycling website in various formats (PDF, DOC, DOCX, HTML).
+    It handles different content types and can store the flyers locally or in S3.
+    """
+
+    FLYER_URL = "https://legacy.usacycling.org/events/getflyer.php"
+    FALLBACK_URL = "https://legacy.usacycling.org/events/flyer.php"
+
+    def __init__(
+        self,
+        cache_enabled: bool = True,
+        cache_dir: str | None = None,
+        rate_limit: bool = True,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+        storage_dir: str = "./flyers",
+        use_s3: bool = False,
+        s3_bucket: str | None = None,
+        s3_prefix: str = "flyers",
+    ):
+        """Initialize the flyer fetcher.
+
+        Args:
+            cache_enabled: Whether to enable response caching
+            cache_dir: Directory to store cached responses
+            rate_limit: Whether to enable rate limiting
+            max_retries: Maximum number of retries for failed requests
+            retry_delay: Delay between retries in seconds
+            storage_dir: Directory to store flyers locally
+            use_s3: Whether to store flyers in S3
+            s3_bucket: S3 bucket name (required if use_s3 is True)
+            s3_prefix: S3 prefix for flyer storage
+
+        """
+        super().__init__(
+            cache_enabled=cache_enabled,
+            cache_dir=cache_dir,
+            rate_limit=rate_limit,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
+        )
+        self.storage_dir = storage_dir
+        self.use_s3 = use_s3
+        self.s3_bucket = s3_bucket
+        self.s3_prefix = s3_prefix
+        self.s3_client = None
+
+        # Create storage directory if it doesn't exist and we're using local storage
+        if not self.use_s3:
+            os.makedirs(self.storage_dir, exist_ok=True)
+
+        # Initialize S3 client if we're using S3
+        if self.use_s3:
+            try:
+                import boto3
+                import botocore
+
+                self.s3_client = boto3.client("s3")
+            except ImportError:
+                logger.error("boto3 is required for S3 storage. Please install it with 'pip install boto3'.")
+                raise
+            except botocore.exceptions.NoCredentialsError:
+                logger.error("AWS credentials not found. Please configure your AWS credentials.")
+                raise
+
+    def _build_flyer_url(self, permit: str) -> str:
+        """Build URL for fetching a flyer.
+
+        Args:
+            permit: USAC permit number (e.g., 2020-123)
+
+        Returns:
+            URL string
+
+        """
+        return f"{self.FLYER_URL}?permit={permit}"
+
+    def _build_fallback_flyer_url(self, permit: str) -> str:
+        """Build fallback URL for fetching a flyer.
+
+        Args:
+            permit: USAC permit number (e.g., 2020-123)
+
+        Returns:
+            URL string
+
+        """
+        return f"{self.FALLBACK_URL}?permit={permit}"
+
+    def _get_filename(self, permit: str, extension: str, source: str | None = None) -> str:
+        """Get filename for a flyer.
+
+        Args:
+            permit: USAC permit number (e.g., 2020-123)
+            extension: File extension (e.g., .pdf)
+            source: Optional source identifier for HTML content
+
+        Returns:
+            Filename string
+
+        """
+        # Replace hyphen with underscore for consistent naming
+        permit_clean = permit.replace("-", "_")
+
+        if source:
+            return f"{permit_clean}_{source}{extension}"
+        return f"{permit_clean}{extension}"
+
+    def _get_storage_path(self, filename: str) -> str:
+        """Get storage path for a flyer.
+
+        Args:
+            filename: Flyer filename
+
+        Returns:
+            Storage path
+
+        """
+        if self.use_s3:
+            return f"{self.s3_prefix}/{filename}"
+        return os.path.join(self.storage_dir, filename)
+
+    def _get_s3_client(self):
+        """Get an S3 client.
+
+        Returns:
+            boto3.client.S3 or None if boto3 is not available
+
+        """
+        if self.s3_client:
+            return self.s3_client
+
+        try:
+            import boto3
+
+            self.s3_client = boto3.client("s3")
+            return self.s3_client
+        except ImportError:
+            logger.error("boto3 is required for S3 storage. Please install it with 'pip install boto3'.")
+            return None
+        except Exception as e:
+            logger.error(f"Error initializing S3 client: {e!s}")
+            return None
+
+    def _save_flyer(self, content: bytes, filename: str) -> bool:
+        """Save flyer content to storage.
+
+        Args:
+            content: Flyer content
+            filename: Filename to save as
+
+        Returns:
+            True if successful, False otherwise
+
+        """
+        try:
+            if self.use_s3:
+                if not self.s3_bucket:
+                    logger.error("S3 bucket not specified")
+                    return False
+
+                import gzip
+                import io
+
+                # Compress with gzip
+                compressed = io.BytesIO()
+                with gzip.GzipFile(fileobj=compressed, mode="wb", compresslevel=9) as gz:
+                    gz.write(content)
+                compressed.seek(0)
+
+                # Upload to S3
+                path = self._get_storage_path(f"{filename}.gz")
+                try:
+                    s3_client = self._get_s3_client()
+                    if s3_client:
+                        s3_client.upload_fileobj(
+                            compressed, self.s3_bucket, path, ExtraArgs={"ContentType": "application/gzip"}
+                        )
+                        logger.info(f"Saved flyer to S3: s3://{self.s3_bucket}/{path}")
+                        return True
+                    else:
+                        # Fall back to local storage if S3 client creation failed
+                        logger.warning("Falling back to local storage as S3 client creation failed")
+                        self.use_s3 = False
+                        os.makedirs(self.storage_dir, exist_ok=True)
+                        return self._save_flyer(content, filename)
+                except ImportError:
+                    # Fall back to local storage if boto3 is not available
+                    logger.warning("Falling back to local storage as boto3 is not available")
+                    self.use_s3 = False
+                    os.makedirs(self.storage_dir, exist_ok=True)
+                    return self._save_flyer(content, filename)
+            else:
+                import gzip
+
+                # Compress with gzip
+                path = self._get_storage_path(f"{filename}.gz")
+                with gzip.open(path, "wb", compresslevel=9) as f:
+                    f.write(content)
+                logger.info(f"Saved flyer to local storage: {path}")
+
+            return True
+        except Exception as e:
+            logger.error(f"Error saving flyer {filename}: {e!s}")
+            return False
+
+    def _inspect_html(self, html_content: bytes) -> tuple[str, bytes]:
+        """Inspect HTML content and identify its structure.
+
+        Args:
+            html_content: HTML content as bytes
+
+        Returns:
+            Tuple of (content_type, processed_content)
+
+        Raises:
+            ParseError: If parsing fails
+
+        """
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+            first_table = soup.find("table")
+
+            # Check if this is a standard USAC flyer page
+            if "Become an Official" in soup.text and first_table:
+                content = first_table.prettify().encode("utf-8")
+                return "std", content
+
+            # Otherwise return the whole HTML
+            content = soup.prettify().encode("utf-8")
+            return "custom", content
+        except Exception as e:
+            raise ParseError(f"Failed to parse HTML content: {e!s}") from e
+
+    def _check_flyer_exists(self, filename: str) -> bool:
+        """Check if a flyer already exists in storage.
+
+        Args:
+            filename: Flyer filename
+
+        Returns:
+            True if the flyer exists, False otherwise
+
+        """
+        try:
+            if self.use_s3:
+                if not self.s3_bucket:
+                    return False
+
+                try:
+                    # Get all files in the prefix
+                    s3_client = self._get_s3_client()
+                    paginator = s3_client.get_paginator("list_objects_v2")
+                    prefix = f"{self.s3_prefix}/"
+
+                    for page in paginator.paginate(Bucket=self.s3_bucket, Prefix=prefix):
+                        if "Contents" in page:
+                            for obj in page["Contents"]:
+                                key = obj["Key"].split("/")[-1]
+                                if key.startswith(filename.split(".")[0]):
+                                    return True
+                except ImportError:
+                    # Fall back to local storage if boto3 is not available
+                    logger.warning("Falling back to local storage as boto3 is not available")
+                    self.use_s3 = False
+                    os.makedirs(self.storage_dir, exist_ok=True)
+                    return self._check_flyer_exists(filename)
+            else:
+                # Check local storage
+                dir_path = self.storage_dir
+                for file in os.listdir(dir_path):
+                    if file.startswith(filename.split(".")[0]):
+                        return True
+
+            return False
+        except Exception as e:
+            logger.error(f"Error checking if flyer exists: {e!s}")
+            return False
+
+    def fetch_flyer(self, permit: str) -> dict[str, Any]:
+        """Fetch flyer for a USAC event permit.
+
+        Args:
+            permit: USAC permit number (e.g., 2020-123)
+
+        Returns:
+            Dictionary with fetched flyer details
+
+        Raises:
+            NetworkError: If there's a network error
+            ParseError: If there's an error parsing the response
+
+        """
+        logger.info(f"Fetching flyer for permit {permit}")
+
+        # Check if the flyer already exists
+        base_filename = self._get_filename(permit, "")
+        if self._check_flyer_exists(base_filename):
+            logger.info(f"Flyer already exists for permit {permit}")
+            return {"status": "exists", "permit": permit}
+
+        # Build URL
+        url = self._build_flyer_url(permit)
+        logger.debug(f"Fetching flyer from URL: {url}")
+
+        try:
+            # Fetch the flyer
+            response = self._fetch_with_retries(url, follow_redirects=True)
+
+            # Check content type
+            content_type = response.headers.get("Content-Type", "").lower()
+            logger.debug(f"Content type for {url}: {content_type}")
+
+            extension = ""
+            content = response.content
+            source = None
+
+            # Determine file extension based on content type
+            if "application/pdf" in content_type:
+                extension = ".pdf"
+            elif "application/msword" in content_type:
+                extension = ".doc"
+            elif "application/vnd.openxmlformats-officedocument.wordprocessingml.document" in content_type:
+                extension = ".docx"
+            elif "text/html" in content_type:
+                # For HTML, inspect the content to determine the structure
+                fallback_url = self._build_fallback_flyer_url(permit)
+                logger.debug(f"HTML content detected, using fallback URL: {fallback_url}")
+
+                try:
+                    fallback_response = self._fetch_with_retries(fallback_url, follow_redirects=True)
+                    fallback_response.raise_for_status()
+                    content = fallback_response.content
+                except Exception as e:
+                    logger.error(f"Error fetching fallback URL {fallback_url}: {e!s}")
+                    # Continue with original content
+
+                extension = ".html"
+                source, content = self._inspect_html(content)
+            else:
+                logger.warning(f"Unknown content type: {content_type}")
+                extension = ".bin"
+
+            # Save the flyer
+            filename = self._get_filename(permit, extension, source)
+            success = self._save_flyer(content, filename)
+
+            if success:
+                return {
+                    "status": "success",
+                    "permit": permit,
+                    "filename": filename,
+                    "content_type": content_type,
+                    "extension": extension,
+                    "source": source,
+                }
+            else:
+                return {
+                    "status": "error",
+                    "permit": permit,
+                    "error": "Failed to save flyer",
+                }
+
+        except Exception as e:
+            logger.error(f"Error fetching flyer for permit {permit}: {e!s}")
+            return {
+                "status": "error",
+                "permit": permit,
+                "error": str(e),
+            }
+
+    def fetch_flyers_batch(self, start_year: int, end_year: int, limit: int = 100, delay: int = 3) -> dict[str, Any]:
+        """Fetch flyers for permits within the specified year range.
+
+        Args:
+            start_year: Start year for fetching flyers
+            end_year: End year for fetching flyers
+            limit: Maximum number of flyers to fetch
+            delay: Delay between requests in seconds
+
+        Returns:
+            Dictionary with statistics about the fetched flyers
+
+        """
+        logger.info(f"Starting to fetch flyers for years {start_year}-{end_year}")
+
+        # Get all permits for the specified years
+        try:
+            from .client import USACyclingClient
+
+            client = USACyclingClient()
+            permits = []
+
+            # Get events for each year and state
+            states = [
+                "AL",
+                "AK",
+                "AZ",
+                "AR",
+                "CA",
+                "CO",
+                "CT",
+                "DE",
+                "FL",
+                "GA",
+                "HI",
+                "ID",
+                "IL",
+                "IN",
+                "IA",
+                "KS",
+                "KY",
+                "LA",
+                "ME",
+                "MD",
+                "MA",
+                "MI",
+                "MN",
+                "MS",
+                "MO",
+                "MT",
+                "NE",
+                "NV",
+                "NH",
+                "NJ",
+                "NM",
+                "NY",
+                "NC",
+                "ND",
+                "OH",
+                "OK",
+                "OR",
+                "PA",
+                "RI",
+                "SC",
+                "SD",
+                "TN",
+                "TX",
+                "UT",
+                "VT",
+                "VA",
+                "WA",
+                "WV",
+                "WI",
+                "WY",
+            ]
+
+            for year in range(start_year, end_year + 1):
+                for state in states:
+                    try:
+                        events = client.get_events(state, year)
+                        permits.extend([event["permit_number"] for event in events if "permit_number" in event])
+                        logger.info(f"Found {len(events)} events for {state} {year}")
+                    except Exception as e:
+                        logger.error(f"Error getting events for {state} {year}: {e!s}")
+                        continue
+
+            # Remove duplicates
+            permits = list(set(permits))
+            logger.info(f"Found {len(permits)} unique permits to process")
+
+        except ImportError:
+            logger.error("Unable to import USACyclingClient, using hardcoded permits")
+            # Fallback to hardcoded permits if client can't be imported
+            permits = [f"{year}-{num}" for year in range(start_year, end_year + 1) for num in range(1, 1001)]
+
+        # Fetch flyers
+        count = 0
+        existing = 0
+        errors = 0
+
+        for permit in permits[:limit]:
+            result = self.fetch_flyer(permit)
+
+            if result["status"] == "exists":
+                existing += 1
+            elif result["status"] == "success":
+                count += 1
+            else:
+                errors += 1
+
+            logger.info(
+                f"Progress: Processed: {count + existing + errors}, "
+                f"Existing: {existing}, Fetched: {count}, Errors: {errors}"
+            )
+
+            # Sleep to avoid rate limiting
+            if delay > 0:
+                time.sleep(delay)
+
+        return {
+            "total_processed": count + existing + errors,
+            "existing": existing,
+            "fetched": count,
+            "errors": errors,
+        }
+
+    def list_flyers(self) -> list[dict[str, Any]]:
+        """List all flyers in storage.
+
+        Returns:
+            List of flyer details
+
+        """
+        flyers = []
+
+        try:
+            if self.use_s3:
+                if not self.s3_bucket:
+                    return []
+
+                try:
+                    # Get all files in the prefix
+                    s3_client = self._get_s3_client()
+                    paginator = s3_client.get_paginator("list_objects_v2")
+                    prefix = f"{self.s3_prefix}/"
+
+                    for page in paginator.paginate(Bucket=self.s3_bucket, Prefix=prefix):
+                        if "Contents" in page:
+                            for obj in page["Contents"]:
+                                key = obj["Key"]
+                                if key.endswith(".gz"):
+                                    filename = key.split("/")[-1].replace(".gz", "")
+                                    flyers.append(
+                                        {
+                                            "filename": filename,
+                                            "size": obj["Size"],
+                                            "last_modified": obj["LastModified"].isoformat(),
+                                            "storage": "s3",
+                                            "path": f"s3://{self.s3_bucket}/{key}",
+                                        }
+                                    )
+                except ImportError:
+                    # Fall back to local storage if boto3 is not available
+                    logger.warning("Falling back to local storage as boto3 is not available")
+                    self.use_s3 = False
+                    os.makedirs(self.storage_dir, exist_ok=True)
+                    return self.list_flyers()
+            else:
+                # List local files
+                dir_path = self.storage_dir
+                for file in os.listdir(dir_path):
+                    if file.endswith(".gz"):
+                        file_path = os.path.join(dir_path, file)
+                        stat = os.stat(file_path)
+                        flyers.append(
+                            {
+                                "filename": file.replace(".gz", ""),
+                                "size": stat.st_size,
+                                "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                                "storage": "local",
+                                "path": file_path,
+                            }
+                        )
+
+            return flyers
+        except Exception as e:
+            logger.error(f"Error listing flyers: {e!s}")
+            return []
